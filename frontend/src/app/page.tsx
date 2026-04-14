@@ -5,11 +5,13 @@ import NFTCard from '@/components/NFTCard';
 import ActivityFeed from '@/components/ActivityFeed';
 import Stats from '@/components/Stats';
 import { useNFTs } from '@/hooks/useNFTs';
-import { Shield, Sparkles, Activity as ActivityIcon } from 'lucide-react';
+import { useWallet } from '@/components/WalletProvider';
+import { Shield, Sparkles, Activity as ActivityIcon, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Home() {
-  const { nfts, activities, unlockingId, unlockNFT, view, setView } = useNFTs();
+  const { nfts, activities, unlockingId, unlockNFT, listNFT, buyNFT, view, setView } = useNFTs();
+  const { activeWallet } = useWallet();
 
   return (
     <main className="min-h-screen pt-28 pb-20 px-6 relative overflow-hidden">
@@ -81,6 +83,17 @@ export default function Home() {
             >
               My NFTs
             </button>
+            <button
+              onClick={() => setView('marketplace')}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                view === 'marketplace' 
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/40' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <ShoppingCart size={14} />
+              Marketplace
+            </button>
           </div>
 
           {/* NFT Grid */}
@@ -100,7 +113,10 @@ export default function Home() {
                   <NFTCard 
                     nft={nft} 
                     onUnlock={unlockNFT} 
+                    onList={listNFT}
+                    onBuy={buyNFT}
                     isLoading={unlockingId === nft.id} 
+                    isOwner={activeWallet ? (nft.owner === activeWallet.address || (nft.unlocked && !nft.owner)) : false}
                   />
                 </motion.div>
               ))

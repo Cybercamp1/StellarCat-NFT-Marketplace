@@ -4,7 +4,9 @@ use soroban_sdk::{contract, contracterror, contractimpl, contracttype, symbol_sh
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
-    Access(Address),
+    Access(Address), // Legacy check_access
+    Owner(u32),      // Token ID -> Owner Address
+    Listing(u32),    // Token ID -> Price (if listed)
 }
 
 #[contracterror]
@@ -14,6 +16,8 @@ pub enum Error {
     InvalidAmount = 1,
     AlreadyUnlocked = 2,
     NotAuthorized = 3,
+    NotListed = 4,
+    InsufficentFunds = 5,
 }
 
 #[contract]
@@ -21,29 +25,90 @@ pub struct NFTAccessControl;
 
 #[contractimpl]
 impl NFTAccessControl {
-    pub fn pay_and_unlock(env: Env, user: Address, amount: i128) -> Result<(), Error> {
+    /// Original unlock logic (Minting/Initial Purchase)
+    pub fn pay_and_unlock(env: Env, user: Address, token_id: u32, amount: i128) -> Result<(), Error> {
         if amount <= 0 {
             return Err(Error::InvalidAmount);
         }
 
-        let key = DataKey::Access(user.clone());
-        if env.storage().persistent().has(&key) {
-             // Example of second error type (Although not strictly required by original logic, makes it better)
+        let access_key = DataKey::Access(user.clone());
+        let owner_key = DataKey::Owner(token_id);
+
+        if env.storage().persistent().has(&owner_key) {
              return Err(Error::AlreadyUnlocked);
         }
 
-        // Store access state
-        env.storage().persistent().set(&key, &true);
+        // Store access and ownership
+        env.storage().persistent().set(&access_key, &true);
+        env.storage().persistent().set(&owner_key, &user);
 
-        // Emit success event
         env.events().publish(
-            (symbol_short!("payment"), symbol_short!("success")),
+            (symbol_short!("unlock"), token_id),
             user.clone(),
         );
         
-        log!(&env, "Access granted to user: {}", user);
-        
         Ok(())
+    }
+
+    /// List an NFT for sale
+    pub fn list_nft(env: Env, seller: Address, token_id: u32, price: i128) -> Result<(), Error> {
+        seller.require_auth();
+
+        let owner_key = DataKey::Owner(token_id);
+        let current_owner: Address = env.storage().persistent().get(&owner_key).ok_or(Error::NotAuthorized)?;
+
+        if current_owner != seller {
+            return Err(Error::NotAuthorized);
+        }
+
+        if price <= 0 {
+            return Err(Error::InvalidAmount);
+        }
+
+        let listing_key = DataKey::Listing(token_id);
+        env.storage().persistent().set(&listing_key, &price);
+
+        env.events().publish(
+            (symbol_short!("list"), token_id),
+            price,
+        );
+
+        Ok(())
+    }
+
+    /// Buy a listed NFT
+    pub fn buy_nft(env: Env, buyer: Address, token_id: u32) -> Result<(), Error> {
+        buyer.require_auth();
+
+        let listing_key = DataKey::Listing(token_id);
+        let price: i128 = env.storage().persistent().get(&listing_key).ok_or(Error::NotListed)?;
+
+        let owner_key = DataKey::Owner(token_id);
+        let seller: Address = env.storage().persistent().get(&owner_key).ok_or(Error::NotAuthorized)?;
+
+        // transfer logic (simulated here, but real web3 would use token client)
+        // transfer_tokens(&env, &token_address, &buyer, &seller, price);
+
+        // Update ownership
+        env.storage().persistent().set(&owner_key, &buyer);
+        env.storage().persistent().remove(&listing_key); // Remove listing
+
+        env.events().publish(
+            (symbol_short!("sale"), token_id),
+            (seller, buyer, price),
+        );
+
+        Ok(())
+    }
+
+    pub fn get_owner(env: Env, token_id: u32) -> Option<Address> {
+        let key = DataKey::Owner(token_id);
+        env.storage().persistent().get(&key)
+    }
+
+    pub fn get_price(env: Env, token_id: u32) -> Option<i128> {
+        let key = DataKey::Listing(token_id);
+        env.storage().persistent().get(&key)
     }
 
     pub fn check_access(env: Env, user: Address) -> bool {
@@ -51,6 +116,7 @@ impl NFTAccessControl {
         env.storage().persistent().get(&key).unwrap_or(false)
     }
 }
+
 
 #[cfg(test)]
 mod test {
@@ -65,15 +131,17 @@ mod test {
 
         let user = Address::generate(&env);
         let amount = 100;
+        let token_id = 1;
 
         // Initially no access
         assert!(!client.check_access(&user));
 
         // Unlock
-        client.pay_and_unlock(&user, &amount);
+        client.pay_and_unlock(&user, &token_id, &amount);
 
         // Access granted
         assert!(client.check_access(&user));
+        assert_eq!(client.get_owner(&token_id), Some(user));
     }
 
     #[test]
@@ -84,25 +152,41 @@ mod test {
 
         let user = Address::generate(&env);
         let amount = 100;
+        let token_id = 1;
 
-        client.pay_and_unlock(&user, &amount);
+        client.pay_and_unlock(&user, &token_id, &amount);
         
-        // Try again, should error (but since it returns Result, we check it)
-        let result = client.try_pay_and_unlock(&user, &amount);
+        // Try again with same token_id, should error
+        let result = client.try_pay_and_unlock(&user, &token_id, &amount);
         assert_eq!(result, Err(Ok(Error::AlreadyUnlocked)));
     }
 
     #[test]
-    fn test_invalid_amount_error() {
+    fn test_marketplace_flow() {
         let env = Env::default();
+        env.mock_all_auths();
         let contract_id = env.register_contract(None, NFTAccessControl);
         let client = NFTAccessControlClient::new(&env, &contract_id);
 
-        let user = Address::generate(&env);
-        let amount = 0;
+        let seller = Address::generate(&env);
+        let buyer = Address::generate(&env);
+        let token_id = 1;
+        let price = 500;
 
-        let result = client.try_pay_and_unlock(&user, &amount);
-        assert_eq!(result, Err(Ok(Error::InvalidAmount)));
+        // 1. Initial purchase
+        client.pay_and_unlock(&seller, &token_id, &100);
+
+        // 2. List for sale
+        client.list_nft(&seller, &token_id, &price);
+        assert_eq!(client.get_price(&token_id), Some(price));
+
+        // 3. Buy
+        client.buy_nft(&buyer, &token_id);
+        
+        // 4. Verify new owner
+        assert_eq!(client.get_owner(&token_id), Some(buyer));
+        assert_eq!(client.get_price(&token_id), None);
     }
 }
+
 

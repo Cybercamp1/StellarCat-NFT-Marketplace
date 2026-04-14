@@ -76,7 +76,8 @@ export function useNFTs() {
   const [nfts, setNfts] = useState<NFT[]>(INITIAL_NFTS);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [status, setStatus] = useState<TransactionStatus>('idle');
-  const [view, setView] = useState<'explore' | 'my-nfts'>('explore');
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
+  const [view, setView] = useState<'explore' | 'my-nfts' | 'marketplace'>('explore');
 
   // 1. Fetch User Access from Contract
   const fetchContractAccess = useCallback(async () => {
@@ -144,7 +145,10 @@ export function useNFTs() {
   }, [activeWallet, fetchContractAccess, syncNFTState]);
 
   // Filtered NFTs for UI
-  const filteredNFTs = view === 'explore' ? nfts : nfts.filter(n => n.unlocked);
+  const filteredNFTs = 
+    view === 'explore' ? nfts : 
+    view === 'my-nfts' ? nfts.filter(n => n.unlocked) :
+    nfts.filter(n => n.listingPrice); // Marketplace view
 
   // 2. Real RPC Event Verification
   const fetchLiveEvents = async () => {
@@ -204,6 +208,7 @@ export function useNFTs() {
     const toastId = toast.loading(`Initiating unlock for ${nft.title}...`);
     const activityId = Date.now().toString();
     setStatus('pending');
+    setUnlockingId(nftId);
 
     setActivities(prev => [{
       id: activityId,
@@ -343,9 +348,113 @@ export function useNFTs() {
         prev.map(a => a.id === activityId ? { ...a, status: 'failed' } : a)
       );
     } finally {
-      setTimeout(() => setStatus('idle'), 3000);
+      setTimeout(() => {
+        setStatus('idle');
+        setUnlockingId(null);
+      }, 3000);
     }
   };
 
-  return { nfts: filteredNFTs, allNFTs: nfts, activities, status, unlockNFT, view, setView };
+  const listNFT = async (nftId: string, price: string) => {
+    if (!activeWallet || !kit) return toast.error('Connect wallet first');
+    
+    const toastId = toast.loading(`Listing NFT for ${price} XLM...`);
+    try {
+      const amountInt = BigInt(parseFloat(price) * 10_000_000);
+      const account = await horizonServer.loadAccount(activeWallet.address);
+
+      let tx = new TransactionBuilder(account, {
+        fee: '10000',
+        networkPassphrase: STELLAR_NETWORK,
+      })
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+            new xdr.InvokeContractArgs({
+              contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+              functionName: 'list_nft',
+              args: [
+                nativeToScVal(activeWallet.address, { type: 'address' }),
+                nativeToScVal(parseInt(nftId), { type: 'u32' }),
+                nativeToScVal(amountInt, { type: 'i128' }),
+              ],
+            })
+          ),
+          auth: []
+        })
+      )
+      .setTimeout(0)
+      .build();
+
+      const simulation = await rpcServer.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(simulation)) throw new Error('Simulation failed');
+      tx = rpc.assembleTransaction(tx, simulation).build();
+
+      const { signedTxXdr } = await kit.signTransaction(tx.toXDR());
+      await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, STELLAR_NETWORK));
+
+      setNfts(prev => prev.map(n => n.id === nftId ? { ...n, listingPrice: price } : n));
+      toast.success('NFT listed successfully!', { id: toastId });
+    } catch (e: any) {
+      toast.error(`Listing failed: ${e.message}`, { id: toastId });
+    }
+  };
+
+  const buyNFT = async (nftId: string) => {
+    const nft = nfts.find(n => n.id === nftId);
+    if (!nft || !nft.listingPrice) return;
+    if (!activeWallet || !kit) return toast.error('Connect wallet first');
+
+    const toastId = toast.loading(`Buying ${nft.title} for ${nft.listingPrice} XLM...`);
+    try {
+      const account = await horizonServer.loadAccount(activeWallet.address);
+
+      let tx = new TransactionBuilder(account, {
+        fee: '10000',
+        networkPassphrase: STELLAR_NETWORK,
+      })
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+            new xdr.InvokeContractArgs({
+              contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+              functionName: 'buy_nft',
+              args: [
+                nativeToScVal(activeWallet.address, { type: 'address' }),
+                nativeToScVal(parseInt(nftId), { type: 'u32' }),
+              ],
+            })
+          ),
+          auth: []
+        })
+      )
+      .setTimeout(0)
+      .build();
+
+      const simulation = await rpcServer.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(simulation)) throw new Error('Simulation failed');
+      tx = rpc.assembleTransaction(tx, simulation).build();
+
+      const { signedTxXdr } = await kit.signTransaction(tx.toXDR());
+      await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, STELLAR_NETWORK));
+
+      setNfts(prev => prev.map(n => n.id === nftId ? { ...n, unlocked: true, listingPrice: undefined, owner: activeWallet.address } : n));
+      toast.success('NFT purchased successfully!', { id: toastId });
+    } catch (e: any) {
+      toast.error(`Purchase failed: ${e.message}`, { id: toastId });
+    }
+  };
+
+  return { 
+    nfts: filteredNFTs, 
+    allNFTs: nfts, 
+    activities, 
+    status, 
+    unlockingId, 
+    unlockNFT, 
+    listNFT,
+    buyNFT,
+    view, 
+    setView 
+  };
 }

@@ -5,7 +5,10 @@ export interface NFT {
   price: string;
   description: string;
   unlocked: boolean;
+  owner?: string;
+  listingPrice?: string;
 }
+
 
 export type TransactionStatus = 'pending' | 'success' | 'failed' | 'idle';
 

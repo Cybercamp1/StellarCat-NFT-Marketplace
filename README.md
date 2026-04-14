@@ -8,16 +8,33 @@ A premium full-stack Web3 dApp built on **Stellar Soroban**, allowing users to c
 - **Dynamic Wallet Switching**: Switch between connected wallets instantly with updated access states.
 - **Soroban Smart Contract**: On-chain access control logic (`pay_and_unlock`, `check_access`).
 - **Real-Time Updates**: Live transaction feed with pending/success/failure states.
+- **Performance Dashboard**: Real-time stats display for total value unlocked and active collectors.
 - **Premium Aesthetics**: High-fidelity dark mode UI with glassmorphism, animations, and custom generated NFT art.
-- **Error Handling**: Robust handling for connection failures, transaction rejections, and insufficient balances.
 
 ## 🛠 Tech Stack
 
-- **Frontend**: Next.js 14, Tailwind CSS, Framer Motion, Lucide Icons.
+- **Frontend**: Next.js 15, Tailwind CSS, Framer Motion, Lucide Icons.
+- **Testing**: Vitest, React Testing Library.
 - **Blockchain**: Stellar Testnet, Soroban Smart Contracts.
-- **Libraries**: `@stellar/stellar-sdk`, `@stellar/wallet-kit`.
 
-## 📦 Project Structure
+## 🧪 Testing
+
+The project includes comprehensive unit tests for both the smart contract and frontend components.
+
+### Frontend Tests
+```bash
+cd frontend
+npm test
+```
+*Tests cover components like ActivityFeed and NFTCard ensuring correct state rendering and interaction.*
+
+### Smart Contract Tests
+```bash
+cd contracts
+cargo test
+```
+
+## 🚀 Setup & Installation
 
 ```text
 /contracts   - Soroban Rust Smart Contract (lib.rs)

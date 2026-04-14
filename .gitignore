@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Rust/Soroban
+contracts/target/
+**/*.rs.bk
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

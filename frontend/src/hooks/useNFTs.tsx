@@ -358,43 +358,51 @@ export function useNFTs() {
   const listNFT = async (nftId: string, price: string) => {
     if (!activeWallet || !kit) return toast.error('Connect wallet first');
     
+    const isContractDeployed = CONTRACT_ID && !CONTRACT_ID.includes('YOUR_CONTRACT_ID');
     const toastId = toast.loading(`Listing NFT for ${price} XLM...`);
+    
     try {
-      const amountInt = BigInt(parseFloat(price) * 10_000_000);
-      const account = await horizonServer.loadAccount(activeWallet.address);
+      if (isContractDeployed) {
+        const amountInt = BigInt(parseFloat(price) * 10_000_000);
+        const account = await horizonServer.loadAccount(activeWallet.address);
 
-      let tx = new TransactionBuilder(account, {
-        fee: '10000',
-        networkPassphrase: STELLAR_NETWORK,
-      })
-      .addOperation(
-        Operation.invokeHostFunction({
-          func: xdr.HostFunction.hostFunctionTypeInvokeContract(
-            new xdr.InvokeContractArgs({
-              contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
-              functionName: 'list_nft',
-              args: [
-                nativeToScVal(activeWallet.address, { type: 'address' }),
-                nativeToScVal(parseInt(nftId), { type: 'u32' }),
-                nativeToScVal(amountInt, { type: 'i128' }),
-              ],
-            })
-          ),
-          auth: []
+        let tx = new TransactionBuilder(account, {
+          fee: '10000',
+          networkPassphrase: STELLAR_NETWORK,
         })
-      )
-      .setTimeout(0)
-      .build();
+        .addOperation(
+          Operation.invokeHostFunction({
+            func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+              new xdr.InvokeContractArgs({
+                contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+                functionName: 'list_nft',
+                args: [
+                  nativeToScVal(activeWallet.address, { type: 'address' }),
+                  nativeToScVal(parseInt(nftId), { type: 'u32' }),
+                  nativeToScVal(amountInt, { type: 'i128' }),
+                ],
+              })
+            ),
+            auth: []
+          })
+        )
+        .setTimeout(0)
+        .build();
 
-      const simulation = await rpcServer.simulateTransaction(tx);
-      if (rpc.Api.isSimulationError(simulation)) throw new Error('Simulation failed');
-      tx = rpc.assembleTransaction(tx, simulation).build();
+        const simulation = await rpcServer.simulateTransaction(tx);
+        if (rpc.Api.isSimulationError(simulation)) throw new Error('Simulation failed');
+        tx = rpc.assembleTransaction(tx, simulation).build();
 
-      const { signedTxXdr } = await kit.signTransaction(tx.toXDR());
-      await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, STELLAR_NETWORK));
+        const { signedTxXdr } = await kit.signTransaction(tx.toXDR());
+        await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, STELLAR_NETWORK));
+      } else {
+        // ── DEMO MODE FALLBACK ──
+        await new Promise(r => setTimeout(r, 1500)); // Simulate lag
+        console.log('Demo Mode: Simulating listing on-chain...');
+      }
 
       setNfts(prev => prev.map(n => n.id === nftId ? { ...n, listingPrice: price } : n));
-      toast.success('NFT listed successfully!', { id: toastId });
+      toast.success('NFT listed successfully (Demo Mode)!', { id: toastId });
     } catch (e: any) {
       toast.error(`Listing failed: ${e.message}`, { id: toastId });
     }
@@ -405,41 +413,49 @@ export function useNFTs() {
     if (!nft || !nft.listingPrice) return;
     if (!activeWallet || !kit) return toast.error('Connect wallet first');
 
+    const isContractDeployed = CONTRACT_ID && !CONTRACT_ID.includes('YOUR_CONTRACT_ID');
     const toastId = toast.loading(`Buying ${nft.title} for ${nft.listingPrice} XLM...`);
+    
     try {
-      const account = await horizonServer.loadAccount(activeWallet.address);
+      if (isContractDeployed) {
+        const account = await horizonServer.loadAccount(activeWallet.address);
 
-      let tx = new TransactionBuilder(account, {
-        fee: '10000',
-        networkPassphrase: STELLAR_NETWORK,
-      })
-      .addOperation(
-        Operation.invokeHostFunction({
-          func: xdr.HostFunction.hostFunctionTypeInvokeContract(
-            new xdr.InvokeContractArgs({
-              contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
-              functionName: 'buy_nft',
-              args: [
-                nativeToScVal(activeWallet.address, { type: 'address' }),
-                nativeToScVal(parseInt(nftId), { type: 'u32' }),
-              ],
-            })
-          ),
-          auth: []
+        let tx = new TransactionBuilder(account, {
+          fee: '10000',
+          networkPassphrase: STELLAR_NETWORK,
         })
-      )
-      .setTimeout(0)
-      .build();
+        .addOperation(
+          Operation.invokeHostFunction({
+            func: xdr.HostFunction.hostFunctionTypeInvokeContract(
+              new xdr.InvokeContractArgs({
+                contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+                functionName: 'buy_nft',
+                args: [
+                  nativeToScVal(activeWallet.address, { type: 'address' }),
+                  nativeToScVal(parseInt(nftId), { type: 'u32' }),
+                ],
+              })
+            ),
+            auth: []
+          })
+        )
+        .setTimeout(0)
+        .build();
 
-      const simulation = await rpcServer.simulateTransaction(tx);
-      if (rpc.Api.isSimulationError(simulation)) throw new Error('Simulation failed');
-      tx = rpc.assembleTransaction(tx, simulation).build();
+        const simulation = await rpcServer.simulateTransaction(tx);
+        if (rpc.Api.isSimulationError(simulation)) throw new Error('Simulation failed');
+        tx = rpc.assembleTransaction(tx, simulation).build();
 
-      const { signedTxXdr } = await kit.signTransaction(tx.toXDR());
-      await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, STELLAR_NETWORK));
+        const { signedTxXdr } = await kit.signTransaction(tx.toXDR());
+        await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signedTxXdr, STELLAR_NETWORK));
+      } else {
+         // ── DEMO MODE FALLBACK ──
+         await new Promise(r => setTimeout(r, 2000));
+         console.log('Demo Mode: Simulating purchase on-chain...');
+      }
 
       setNfts(prev => prev.map(n => n.id === nftId ? { ...n, unlocked: true, listingPrice: undefined, owner: activeWallet.address } : n));
-      toast.success('NFT purchased successfully!', { id: toastId });
+      toast.success('NFT purchased successfully (Demo Mode)!', { id: toastId });
     } catch (e: any) {
       toast.error(`Purchase failed: ${e.message}`, { id: toastId });
     }

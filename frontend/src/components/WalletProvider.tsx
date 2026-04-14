@@ -78,7 +78,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const msg = e instanceof Error ? e.message : String(e);
       // User closed the modal — not a real error
       if (msg.includes('closed') || msg.includes('cancel')) return;
-      console.error('Connection error:', e);
+      console.warn('Connection warning:', e);
     }
   };
 

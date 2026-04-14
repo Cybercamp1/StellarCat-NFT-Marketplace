@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import NFTCard from '@/components/NFTCard';
 import ActivityFeed from '@/components/ActivityFeed';
 import Stats from '@/components/Stats';
+import Leaderboard from '@/components/Leaderboard';
 import { useNFTs } from '@/hooks/useNFTs';
 import { useWallet } from '@/components/WalletProvider';
 import { Shield, Sparkles, Activity as ActivityIcon, ShoppingCart } from 'lucide-react';
@@ -124,9 +125,12 @@ export default function Home() {
           </section>
         </div>
 
-        {/* Right Column: Activity Feed */}
-        <div className="lg:col-span-4 lg:sticky lg:top-28 h-[calc(100vh-140px)]">
-          <ActivityFeed activities={activities} />
+        {/* Right Column: Activity Feed & Leaderboard */}
+        <div className="lg:col-span-4 lg:sticky lg:top-28 h-fit space-y-8">
+          <div className="h-[400px]">
+            <ActivityFeed activities={activities} />
+          </div>
+          <Leaderboard />
         </div>
       </div>
 

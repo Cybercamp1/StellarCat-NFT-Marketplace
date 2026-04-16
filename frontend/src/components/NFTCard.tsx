@@ -4,6 +4,7 @@ import React from 'react';
 import { NFT } from '@/types';
 import { Lock, Unlock, Zap, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import ListModal from './ListModal';
 
 interface Props {
   nft: NFT;
@@ -15,11 +16,10 @@ interface Props {
 }
 
 export default function NFTCard({ nft, onUnlock, onList, onBuy, isLoading, isOwner }: Props) {
-  const handleList = () => {
-    const price = prompt('Set price in XLM (e.g. 5):');
-    if (price && !isNaN(parseFloat(price))) {
-      onList(nft.id, price);
-    }
+  const [isListModalOpen, setIsListModalOpen] = React.useState(false);
+
+  const handleListConfirm = (price: string) => {
+    onList(nft.id, price);
   };
 
   return (
@@ -109,7 +109,7 @@ export default function NFTCard({ nft, onUnlock, onList, onBuy, isLoading, isOwn
           {/* Action 3: List for Sale (If owned) */}
           {nft.unlocked && !nft.listingPrice && (
             <button
-              onClick={handleList}
+              onClick={() => setIsListModalOpen(true)}
               disabled={isLoading}
               className="w-full py-3 bg-white/10 text-white font-bold border border-white/20 rounded-2xl hover:bg-white/20 transition-all flex items-center justify-center gap-2"
             >
@@ -135,6 +135,13 @@ export default function NFTCard({ nft, onUnlock, onList, onBuy, isLoading, isOwn
           )}
         </div>
       </div>
+
+      <ListModal 
+        isOpen={isListModalOpen}
+        onClose={() => setIsListModalOpen(false)}
+        onConfirm={handleListConfirm}
+        nftTitle={nft.title}
+      />
     </motion.div>
   );
 }

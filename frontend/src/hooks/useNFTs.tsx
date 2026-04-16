@@ -94,7 +94,7 @@ export function useNFTs() {
         Operation.invokeHostFunction({
           func: xdr.HostFunction.hostFunctionTypeInvokeContract(
             new xdr.InvokeContractArgs({
-              contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+              contractAddress: Address.fromString(CONTRACT_ID).toScAddress(),
               functionName: 'check_access',
               args: [
                 nativeToScVal(activeWallet.address, { type: 'address' }),
@@ -216,7 +216,7 @@ export function useNFTs() {
       status: 'pending',
       address: activeWallet.address,
       timestamp: new Date()
-    }, ...prev].slice(0, 20));
+    } as Activity, ...prev].slice(0, 20));
 
     const isContractDeployed = CONTRACT_ID && !CONTRACT_ID.includes('YOUR_CONTRACT_ID');
 
@@ -260,7 +260,7 @@ export function useNFTs() {
           Operation.invokeHostFunction({
             func: xdr.HostFunction.hostFunctionTypeInvokeContract(
               new xdr.InvokeContractArgs({
-                contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+                contractAddress: Address.fromString(CONTRACT_ID).toScAddress(),
                 functionName: 'pay_and_unlock',
                 args: [
                   nativeToScVal(activeWallet.address, { type: 'address' }),
@@ -293,7 +293,7 @@ export function useNFTs() {
         if (response.status === 'ERROR') throw new Error('Transaction submission failed');
 
         let txResult = await rpcServer.getTransaction(response.hash);
-        while (txResult.status === 'NOT_FOUND' || txResult.status === 'PENDING') {
+        while (txResult.status === 'NOT_FOUND') {
           await new Promise(r => setTimeout(r, 1500));
           txResult = await rpcServer.getTransaction(response.hash);
         }
@@ -374,7 +374,7 @@ export function useNFTs() {
           Operation.invokeHostFunction({
             func: xdr.HostFunction.hostFunctionTypeInvokeContract(
               new xdr.InvokeContractArgs({
-                contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+                contractAddress: Address.fromString(CONTRACT_ID).toScAddress(),
                 functionName: 'list_nft',
                 args: [
                   nativeToScVal(activeWallet.address, { type: 'address' }),
@@ -428,7 +428,7 @@ export function useNFTs() {
           Operation.invokeHostFunction({
             func: xdr.HostFunction.hostFunctionTypeInvokeContract(
               new xdr.InvokeContractArgs({
-                contractAddress: Address.fromString(CONTRACT_ID).toDefaultAddress(),
+                contractAddress: Address.fromString(CONTRACT_ID).toScAddress(),
                 functionName: 'buy_nft',
                 args: [
                   nativeToScVal(activeWallet.address, { type: 'address' }),

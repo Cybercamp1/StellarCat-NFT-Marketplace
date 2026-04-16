@@ -14,22 +14,30 @@ describe('NFTCard', () => {
   };
 
   it('renders correctly when locked', () => {
-    render(<NFTCard nft={mockNFT} onUnlock={vi.fn()} isLoading={false} />);
+    render(<NFTCard nft={mockNFT} onUnlock={vi.fn()} onList={vi.fn()} onBuy={vi.fn()} isLoading={false} />);
     expect(screen.getByText('Space Cat')).toBeInTheDocument();
     expect(screen.getByText('LOCKED')).toBeInTheDocument();
   });
 
   it('calls onUnlock when button is clicked', () => {
     const onUnlock = vi.fn();
-    render(<NFTCard nft={mockNFT} onUnlock={onUnlock} isLoading={false} />);
+    render(<NFTCard nft={mockNFT} onUnlock={onUnlock} onList={vi.fn()} onBuy={vi.fn()} isLoading={false} />);
     fireEvent.click(screen.getByText(/Unlock for 10 XLM/i));
     expect(onUnlock).toHaveBeenCalledWith('1');
   });
 
   it('renders correctly when unlocked', () => {
     const unlockedNFT = { ...mockNFT, unlocked: true };
-    render(<NFTCard nft={unlockedNFT} onUnlock={vi.fn()} isLoading={false} />);
-    expect(screen.getByText('UNLOCKED')).toBeInTheDocument();
-    expect(screen.getByText('Purchased')).toBeInTheDocument();
+    render(
+      <NFTCard 
+        nft={unlockedNFT} 
+        onUnlock={vi.fn()} 
+        onList={vi.fn()} 
+        onBuy={vi.fn()} 
+        isLoading={false} 
+      />
+    );
+    expect(screen.getByText('OWNED')).toBeInTheDocument();
+    expect(screen.getByText('Owned & Private')).toBeInTheDocument();
   });
 });
